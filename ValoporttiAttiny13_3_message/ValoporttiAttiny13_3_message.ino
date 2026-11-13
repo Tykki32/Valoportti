@@ -25,14 +25,9 @@
  *
  * LAITTEISTON JAKO
  *   PA7   analogitulo (valokenno), ADC0 kanava AIN7
- *   PA4   digitaalitulo -> EVSYS-kanava 0 -> TCB0 capture -> pa4_time (tarkka reunan aikaleima).
- *         OLETUS: PA4 on kytketty samaan synkronointiverkkoon kuin PA1 (koodi lukee vain PA4:ää,
- *         PA1:tä ei lueta koskaan).
- *   PA1   YHTEINEN synkronointilinja (käyttäjän vahvistama: kytketty ESP32:een ja muihin ATtiny816-
- *         laitteisiin). Lepotilassa tulo + pull-up (HIGH). ESP32:n lähettämä synkronointipulssi saapuu
- *         kaikkiin laitteisiin yhtä aikaa, joten kukin tallentaa sen oman kellonsa mukaan (pa4_time) ja
- *         ESP32 voi laskea kellojen erot. Kun raportointi on päällä, laite vetää linjan itse LOW 80 µs
- *         kun mitattava reuna ylittää 50 % (sendReport), eli muut näkevät tapahtuman (OLETUS).
+ *   PA4   digitaalitulo -> EVSYS-kanava 0 -> TCB0 capture -> pa4_time (tarkka reunan aikaleima)
+ *   PA1   synkronointilinja: lepotilassa tulo + pull-up (HIGH). Kun raportointi on päällä,
+ *         laite vetää linjan LOW 80 µs kun mitattava reuna ylittää 50 % (sendReport)
  *   TCA0  vapaasti pyörivä 16-bit ajastin + ylivuotolaskuri = aikaleimojen perusta
  *   TCD0  näytteenottokello: CMPBCLR-event -> EVSYS-kanava 1 -> käynnistää ADC0-muunnoksen
  *   TCB0  capture-ajastin PA4-reunan aikaleimaukseen
@@ -214,11 +209,6 @@ union Osissa64{
 volatile uint32_t tca_overflows = 0;
 // Viimeisimmän PA4-reunan aikaleima (syklit). Alkuarvo 1 = reunaa ei ole vielä tullut.
 // Päivittyy TCB0_INT_vect:ssa, luetaan CMD_PA4_TIME:lla. Uusi reuna ylikirjoittaa edellisen.
-// Käyttö: ESP32:n synkronointipulssi tallentuu kaikissa laitteissa samalla fyysisellä hetkellä mutta kunkin
-// oman kellon mukaan; ESP32 lukee arvot ja laskee laitteiden kellojen erot.
-// HUOM (OLETUS: PA4 on samassa linjassa kuin PA1): myös minkä tahansa laitteen oma sendReport()-pulssi
-//      laukaisee capturen kaikissa PA4:ään kytketyissä laitteissa ja ylikirjoittaa ESP32:n pulssin aikaleiman.
-//      Lue pa4_time ennen kuin joku antaa reunapulssin.
 volatile uint64_t pa4_time = 1;
 // Ei käytössä (tämä ja pa4_ovf_snapshot).
 volatile uint16_t pa4_capture = 0;
@@ -588,9 +578,8 @@ void write7Bit(uint64_t val, uint8_t bytes) {
   }
 
 // PA1-synkronointipulssi ulos: linja LOW nyt, vapautus 80 µs (80 * 20 sykliä) päästä (loop() vapauttaa).
-// PA1 on yhteinen linja ESP32:n ja muiden ATtiny816-laitteiden kanssa (käyttäjän vahvistama), joten pulssin
-// näkevät kaikki yhtä aikaa. OLETUS: ne ottavat sen aikaleiman PA4-capturella (pa4_time). Kutsutaan
-// ADC-keskeytyksestä kun reuna ylittää 50 %
+// OLETUS: PA1 on yhteinen toisten laitteiden / masterin tulon (esim. PA4) kanssa, jolloin ne ottavat pulssin
+// aikaleiman (pa4_time) ja voivat vertailla kellojaan. Kutsutaan ADC-keskeytyksestä kun reuna ylittää 50 %
 // ja report == true. PA1 on tällöin lähtönä, koska CMD_REPORT_TRUE asetti sen (OUT = HIGH, DIR = lähtö).
 void sendReport(){
   PORTA.OUTCLR = PIN1_bm;   // LOW
@@ -783,11 +772,6 @@ void receiveEvent(int){
       }
     // Salli synkronointipulssi: PA1 lähdöksi ja HIGH:ksi (OUTSET ennen DIRSET, ettei linjaan tule LOW-piikkiä).
     // Kertakäyttöinen: loop() palauttaa PA1:n tuloksi ja nollaa report:in pulssin jälkeen.
-    // HUOM: ATtiny ajaa PA1:n push-pull-tilassa HIGH:ksi niin kauan kuin report on päällä (ei open-drain).
-    //       Jaetulla linjalla (ESP32 + muut ATtinyt) syntyy oikosulkuvirta, jos joku muu vetää linjan LOW
-    //       samalla hetkellä: esim. ESP32:n synkronointipulssi, toisen laitteen sendReport() tai toinen laite
-    //       jolla report on myös päällä. Turvallista vain jos kerrallaan vain yksi laite on report-tilassa ja
-    //       ESP32 ei pulssita sillä välin, tai jos linjassa on sarjavastukset (ei tiedossa).
     case CMD_REPORT_TRUE:{
       report=true;
       PORTA.OUTSET = PIN1_bm;
