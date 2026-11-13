@@ -67,7 +67,7 @@
 #define CMD_EDGE_NEXT   25   /* S  poista jonon vanhin tulos */
 #define CMD_EDGE_DATA   26   /* S+L payload = aloitusindeksi; luku palauttaa 14 lukemaa RAAKANA (little-endian, 28 tavua) */
 #define CMD_CLOCK       27   /* S  payload = ulkoisen kellon kHz (PA3), 0 = takaisin sisäiseen */
-#define CMD_ADC_CFG     28   /* S  payload = kertymäkoodi (0..6, 7 = auto) | samplen<<3 */
+#define CMD_ADC_CFG     28   /* S  payload = kertymäkoodi (0..3 -> N = 1,2,4,8; 7 = auto) | samplen<<3 | esijakajakoodi+1 << 8 (0 = auto) */
 #define CMD_ADC_NOISE   29   /* (varattu) kohina: CMD_PRINT valitsin 2 = kohinan keskipoikkeama x 8 */
 #define CMD_TIME_ADJ    30   /* S  aikakorjaus (etumerkillinen, sykliä), lisätään kaikkiin reunaaikoihin */
 #define CMD_EDGE_PARAM  31   /* S  thr_min | min_step<<10 | thr_mult<<24 */
@@ -101,6 +101,7 @@ static uint16_t clk_khz = F_CPU / 1000UL;
 static uint8_t  cfg_vref = 1;                  /* oletus 1,1 V: nopea ADC (0,55 V:lla CLK_ADC <= 260 kHz, ks. README) */
 static uint8_t  cfg_nacc_code = 7;             /* 7 = auto */
 static uint8_t  cfg_samplen = 0;
+static uint8_t  cfg_presc = 0;                 /* 0 = automaattinen (datasheetin rajoissa), 1..7 = esijakajakoodi + 1 (voi ylittää rajan) */
 static uint8_t  nacc_code = 3, presc_code = 3, samplen = 0;
 static uint16_t Pcyc = 800;                    /* TCA0-jakso */
 static uint16_t delta_eff = 0;                 /* laukaisusta vaikuttavaan näytehetkeen (sykliä) */
@@ -186,7 +187,8 @@ static void adc_derive(void) {
     uint16_t lim = (cfg_vref == 0 && !mux_sel) ? 260 : 1500;       /* CLK_ADC:n yläraja kHz (taulukko 36-26) */
     if (mux_sel) lim = 500;                                         /* lämpötila-anturi: pitkä näytteistysaika */
     uint8_t code = 0;
-    while (code < 7 && (clk_khz >> (code + 1)) > lim) code++;
+    if (cfg_presc) code = (uint8_t)(cfg_presc - 1);                 /* käyttäjän valinta: ei rajatarkistusta */
+    else while (code < 7 && (clk_khz >> (code + 1)) > lim) code++;
     presc_code = code;
     uint16_t div = (uint16_t)(2U << code);
     samplen = cfg_samplen;
@@ -204,7 +206,7 @@ static void adc_derive(void) {
     nacc_code = c;
     uint8_t nacc = (uint8_t)(1U << c);
     uint16_t startd = (uint16_t)(div / 2 + 2);                     /* aloitusviive laukaisusta (datasheet) */
-    Pcyc = (uint16_t)(startd + nacc * conv + 6);                   /* +6 sykliä marginaalia */
+    Pcyc = (uint16_t)(startd + nacc * conv + 24);                  /* +24 sykliä: tulos valmis ja luettu ennen seuraavaa laukaisua */
     /* vaikuttava näytehetki: aloitusviive + (N-1)/2 muunnosta + (2 + SAMPLEN) CLK_ADC-sykliä */
     delta_eff = (uint16_t)((2U * (startd + (2 + samplen) * div) + (nacc - 1) * conv + 1) / 2);
     t_off = (int16_t)(delta_eff + time_adj);
@@ -253,13 +255,13 @@ static void adc_apply(void) {
     raw_valid = 0; qn = 0; qh = 0;
 }
 
-/* ADC-lukeman keskeytys: vain lukema renkaaseen. RES:n luku kuittaa lipun. */
+/* ADC-lukeman keskeytys (LVL1, ohittaa TWI/TCA0/TCB0): vain lukema renkaaseen. RES:n luku kuittaa lipun. */
 ISR(ADC0_RESRDY_vect) {
     uint8_t w = rb_w;
     rb_val[w & (RB_N - 1)] = ADC0.RES;
     rb_w = w + 1;
 }
-/* TCA0-ylivuoto: aikaperusta (nostettu korkeimpaan prioriteettiin CPUINT.LVL1VEC:llä) */
+/* TCA0-ylivuoto: aikaperusta (LVL0; ts_now/TCB0 korjaavat "ylivuoto tapahtunut mutta ISR ei vielä ajettu" -tapauksen) */
 ISR(TCA0_OVF_vect) {
     TCA0.SINGLE.INTFLAGS = TCA_SINGLE_OVF_bm;
     tca_ovf++;
@@ -304,8 +306,8 @@ static void receiveEvent(int) {
         case CMD_ADC_START:  req_stats = 1; break;
         case CMD_ADC_STOP:   req_stats_stop = 1; break;
 #if FEAT_REPORT
-        case CMD_REPORT_TRUE:  report = 1; PORTA.OUTSET = PIN1_bm; PORTA.DIRSET = PIN1_bm; break;
-        case CMD_REPORT_FALSE: report = 0; PORTA.DIRCLR = PIN1_bm; PORTA.PIN1CTRL = PORT_PULLUPEN_bm; break;
+        case CMD_REPORT_TRUE:  report = 1; break;                  /* PA1 pysyy tulona + pull-up; vedetään alas vasta pulssin ajaksi */
+        case CMD_REPORT_FALSE: report = 0; PORTA.DIRCLR = PIN1_bm; break;
 #endif
         case CMD_VREF:       if (m < VREF_COUNT) { cfg_vref = (uint8_t)m; req_apply = 1; } break;
 #if FEAT_TEMP
@@ -314,7 +316,7 @@ static void receiveEvent(int) {
 #if FEAT_CLOCK
         case CMD_CLOCK:      req_clock_khz = (uint16_t)m; req_clock = 1; break;
 #endif
-        case CMD_ADC_CFG:    cfg_nacc_code = (uint8_t)(m & 7); cfg_samplen = (uint8_t)((m >> 3) & 31); req_apply = 1; break;
+        case CMD_ADC_CFG:    cfg_nacc_code = (uint8_t)(m & 7); cfg_samplen = (uint8_t)((m >> 3) & 31); cfg_presc = (uint8_t)((m >> 8) & 7); req_apply = 1; break;
         case CMD_TIME_ADJ:   time_adj = (int16_t)(m & 0xFFFF); t_off = (int16_t)(delta_eff + time_adj); break;
         case CMD_EDGE_NEXT:  if (qn) { qh = (uint8_t)((qh + 1) % QN); qn--; } break;
         case CMD_EDGE_PARAM: edcfg.thr_min = (uint16_t)(m & 0x3FF); edcfg.min_step = (uint16_t)((m >> 10) & 0x3FFF);
@@ -356,12 +358,14 @@ static void requestEvent() {
         case CMD_PRINT: {                                        /* debug; valitsin = last_msg */
             uint16_t sel = (uint16_t)last_msg; nr = 0;
             if (sel == 1)      v = raw_len;                                           /* reunapuskurin pituus */
-            else if (sel == 2) v = det.dev3;                                          /* kohinan keskipoikkeama x 8 (lukemayksikköä) */
+            else if (sel == 2) v = lower_v;                                           /* (vanha) tallennettu alaraja */
+            else if (sel == 3) v = upper_v;                                           /* (vanha) tallennettu yläraja */
             else if (sel == 4) { if (qn) v = head_vika(); else nr = 1; }              /* vikaAika: ylitys suhteessa ekaAika:an */
             else if (sel == 5) { if (qn) v = rec_time(&q[qh], 1); else nr = 1; }      /* ekaAika */
             else if (sel == 6) v = Pcyc;                                              /* lukemajakso (sykliä) */
             else if (sel == 7) { if (qn) v = (uint32_t)(uint16_t)(q[qh].H + 32768) | ((uint32_t)q[qh].flags << 16); else nr = 1; }
-            else if (sel >= 10) { uint16_t k = sel - 10; v = (raw_valid && k < raw_len) ? det.buf[k] : 0xFFFF; }
+            else if (sel == 8) v = det.dev3;                                          /* kohinan keskipoikkeama x 8 (lukemayksikköä) */
+            else if (sel >= 10) { uint16_t k = sel - 10; v = (raw_valid && k < raw_len) ? det.buf[k] : 0; }   /* 0 = lista loppu (kuten ennen) */
             else n = 0;
             break; }
         case CMD_EDGE_DATA: {                                    /* RAAKA lohko: 14 lukemaa little-endian alkaen indeksistä last_msg */
@@ -425,14 +429,14 @@ static void service_readings(void) {
             if (before != ED_COLLECT && det.state == ED_COLLECT) {
                 raw_valid = 0;                                  /* puskuria aletaan täyttää: vanha raakadata ei enää voimassa */
 #if FEAT_REPORT
-                if (report) { PORTA.OUTCLR = PIN1_bm; rep_wait = 2; }   /* PA1-pulssi reunan alkaessa */
+                if (report) { PORTA.DIRSET = PIN1_bm; rep_wait = 2; }   /* PA1-pulssi (LOW) reunan alkaessa; OUT-säie on 0 */
 #endif
             }
             if (det.state == ED_DONE) handle_edge();
         }
 #if FEAT_REPORT
         if (rep_wait && --rep_wait == 0) {                      /* pulssi päättyy ~1-2 lukemaa myöhemmin */
-            PORTA.DIRCLR = PIN1_bm; PORTA.PIN1CTRL = PORT_PULLUPEN_bm; report = 0;
+            PORTA.DIRCLR = PIN1_bm; report = 0;
         }
 #endif
     }
@@ -491,10 +495,10 @@ void setup() {
     Wire.onReceive(receiveEvent);
     Wire.onRequest(requestEvent);
     PORTA.DIRCLR = PIN7_bm;
-    PORTA.DIRCLR = PIN1_bm; PORTA.PIN1CTRL = PORT_PULLUPEN_bm;     /* PA1: raportointilinja, lepotilassa tulo + pull-up */
+    PORTA.OUTCLR = PIN1_bm; PORTA.DIRCLR = PIN1_bm; PORTA.PIN1CTRL = PORT_PULLUPEN_bm;   /* PA1: raportointilinja, avoin nielu: lepotilassa tulo + pull-up */
     PORTA.DIRCLR = PIN4_bm; PORTA.PIN4CTRL = PORT_ISC_INTDISABLE_gc;   /* PA4: synkronointi (tulopuskuri päällä) */
     cli();
-    CPUINT.LVL1VEC = TCA0_OVF_vect_num;                           /* aikaperustan ylivuoto saa ohittaa muut keskeytykset */
+    CPUINT.LVL1VEC = ADC0_RESRDY_vect_num;                        /* ADC-tulos luetaan heti: TWI-keskeytys (LVL0) ei saa viivästyttää sitä */
     /* PA4 -> TCB0 capture (nouseva reuna, EDGE = 0) */
     EVSYS.ASYNCCH0 = 0x0E;                                        /* PORTA PIN4 */
     EVSYS.ASYNCUSER0 = 0x03;                                      /* TCB0 kuuntelee ASYNCCH0:aa */

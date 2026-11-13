@@ -26,7 +26,9 @@ sovitus; testattavissa `g++`:lla).
 * Aikaleimat (`CMD_RUNTIME`, `CMD_PA4_TIME`, reunat) ovat samalla aikaperustalla: `t = ylivuotolaskuri·P + TCA0.CNT`.
   PA4-pulssin tallentaa TCB0 (capture, TCB käynnistyy TCA0:n ylivuodossa), joten CCMP = TCA0.CNT hetkellä, jolloin
   pulssi tuli – keskeytyksen viive ei vaikuta.
-* TCA0:n ylivuoto on nostettu korkeimpaan prioriteettiin (`CPUINT.LVL1VEC`).
+* ADC:n RESRDY-keskeytys on korotettu korkeampaan prioriteettiin (`CPUINT.LVL1VEC`): tulos luetaan heti, vaikka TWI-keskeytys
+  olisi käynnissä (datasheet ei lupaa, että RES säilyy seuraavan laukaisun yli). TCA0-ylivuoto, TCB0 ja TWI ovat LVL0:ssa:
+  yksittäisen TWI-keskeytyksen on kestettävä alle P (~84 µs), muuten ylivuotolaskuri tai PA4-aikaleima voi heittää P:n.
 * Ajat ovat **32-bittisiä ja kiertäviä** (2³² sykliä ≈ 7 min @ 10 MHz); laske erotukset modulo 2³². Vastaus on
   8 × 7 bittiä, ylimmät bitit nollia.
 * Reunan hetki = `ekaAika + vikaAika`: `CMD_PRINT` 5 → puskurin alun (buf[0]) aika, `CMD_RESULT` (tai `CMD_PRINT` 4) →
@@ -84,8 +86,8 @@ Kirjoitus: `[komento][payload: 7 bittiä / tavu, MSB ensin]`. Luku: komennon jä
 | 10 | STOP | S | lopeta tunnistus |
 | 11 | I2C_TEST | L (1 tavu) | 17 |
 | 12 | RUNTIME | L | laitteen aikaleima nyt (sykliä) |
-| 15 | PRINT | S+L | valitsin = payload: 1 = reunapuskurin pituus, 2 = kohinan keskipoikkeama × 8 (lukemayksikköä), 4 = vikaAika, 5 = ekaAika, 6 = P (sykliä), 7 = askel H + 32768 \| liput << 16, ≥ 10 = raaka lukema nro (valitsin − 10) |
-| 16 / 17 | REPORT_TRUE / FALSE | S | PA1-pulssi kun reuna alkaa (kertakäyttöinen) / peru |
+| 15 | PRINT | S+L | valitsin = payload: 1 = reunapuskurin pituus, 2 = alaraja (vanha `CMD_ADC_LOWER`), 3 = yläraja, 4 = vikaAika, 5 = ekaAika, 6 = P (sykliä), 7 = askel H + 32768 \| liput << 16, 8 = kohinan keskipoikkeama × 8 (lukemayksikköä), ≥ 10 = raaka lukema nro (valitsin − 10); 0 = lista loppu |
+| 16 / 17 | REPORT_TRUE / FALSE | S | PA1 vedetään LOW 1–2 lukeman ajaksi kun ensimmäinen reuna alkaa (**ei** 50 %-kohdassa), kertakäyttöinen / peru. PA1 on avoin nielu (tulo + pull-up, vedetään alas vain pulssin ajaksi), joten usean laitteen yhteinen linja on turvallinen |
 | 18 | VREF | S | ADC-ref: 0 = 0,55 V, 1 = 1,1 V, 2 = 2,5 V, 3 = 4,34 V, 4 = 1,5 V, 5 = VDD. **Aikaperusta alkaa alusta** |
 | 19 | ID | L | UID:n 4 alinta tavua |
 | 20 / 21 | TEMP_START / STOP | S / L | lämpötilamittaus (kuten ennen; ei `FEAT_TEMP=0`-käännöksessä) |
@@ -93,7 +95,7 @@ Kirjoitus: `[komento][payload: 7 bittiä / tavu, MSB ensin]`. Luku: komennon jä
 | **25** | EDGE_NEXT | S | poista jonon vanhin tulos (lue ensin RESULT/PRINT) |
 | **26** | EDGE_DATA | S+L | payload = aloitusindeksi; luku = **28 tavua**: 14 raakalukemaa little-endian (0xFFFF = ei dataa) viimeisimmästä reunasta |
 | **27** | CLOCK | S | payload = ulkoisen kellon kHz (PA3), 0 = takaisin sisäiseen. **Aikaperusta alkaa alusta** |
-| **28** | ADC_CFG | S | kertymäkoodi (0..3 → N = 1, 2, 4, 8; 7 = auto) \| SAMPLEN << 3. **Aikaperusta alkaa alusta** |
+| **28** | ADC_CFG | S | kertymäkoodi (0..3 → N = 1, 2, 4, 8; 7 = auto) \| SAMPLEN << 3 \| (esijakajakoodi + 1) << 8 (0 = auto datasheetin rajoissa; 1…7 = DIV2…DIV256, **voi ylittää datasheetin ADC-kellorajan** – käytä vain jos kohinamittaus osoittaa sen paremmaksi). **Aikaperusta alkaa alusta** |
 | **30** | TIME_ADJ | S | aikakorjaus sykleinä (16-bittinen kaksoiskomplementti, 3 × 7 bittiä), lisätään kaikkiin reunaaikoihin |
 | **31** | EDGE_PARAM | S | `thr_min \| min_step << 10 \| thr_mult << 24` (oletus 6, 40, 5) |
 
@@ -107,10 +109,12 @@ Jonoon mahtuu 8 reunaa; lue ne ennen seuraavaa laukaisua.
 2. `CMD_ADC_START` → pollaa `CMD_ADC_RESULT` kunnes ≠ −1 (≈ 11–25 ms). Tulos = taso / muunnos × 65536 → `L = tulos / 65536`
    (0…1023 muunnosyksikköä).
 3. Valitse ref: **pienin referenssi ≥ 1,1 V jolla `L ≤ ~0,85 · 1023`** (varaa ~15 % ledien kirkkauden ajautumiselle
-   akun jännitteen mukana). 0,55 V:lla ADC on rajoitettu 260 kHz:iin (N = 1–2, P ≈ 90–170 µs) ja menettää ~8 × näytemäärän;
-   se kannattaa vain jos 1,1 V:lla `L < ~35 %` ja mittaukset (kohina, `CMD_PRINT` 2) osoittavat sen paremmaksi.
-   Vertailuun: tiedon määrä aikayksikköä kohti ∝ `(H/σ)² / Ts`, missä `H ≈ L·N/6` (lukemayksikköä) ja
-   `σ ≈ 1,25 · (CMD_PRINT 2)/8`; valitse suurin.
+   akun jännitteen mukana). 0,55 V:ta ei kannata käyttää datasheetin rajoissa: ADC-kello on silloin ≤ 260 kHz (N = 1–2,
+   P ≈ 90–170 µs), eli ~8 × vähemmän muunnoksia, ja askel kasvaa vain 2 × → tietomäärä ∝ (H/σ)²·muunnosnopeus on silti
+   ~2 × huonompi. Jos signaali täyttää alle puolet asteikosta jo 1,1 V:lla, paras keino on nostaa ledien tehoa (ei referenssin
+   vaihtoa).
+   Vertailuun (esim. eri `CMD_ADC_CFG`-asetukset): tiedon määrä aikayksikköä kohti ∝ `(H/σ)² / Ts`, missä `H ≈ L·N/6`
+   (lukemayksikköä, jos askel on 1/6 asteikosta) ja `σ ≈ 1,25 · (CMD_PRINT 8)/8`; valitse suurin.
 4. `CMD_START` → odota ≥ 25 ms (lämmittely; tai pollaa STATUS bitti 0x02). Ledit pysyvät päällä.
 5. Kappaleen ohituksen jälkeen: pollaa STATUS (jonon pituus 8) tai `CMD_REPORT_TRUE` (PA1). Lue jokaiselle reunalle
    `CMD_PRINT` 5 (ekaAika), `CMD_RESULT` (vikaAika), tarvittaessa `CMD_PRINT` 7 (H, liput) ja `CMD_EDGE_DATA`, sitten
@@ -144,10 +148,36 @@ jäädyttää MCU:n, vain WDT nollaa → WDT ~1 s on päällä). `CMD_CLOCK` kHz
 ## 6. Käännös, flash ja RAM
 
 Ominaisuuskytkimet (`-DFEAT_TEMP=0`, `-DFEAT_CLOCK=0`, `-DFEAT_REPORT=0`) poistavat osia, jos flash ei riitä (ATtiny816: 8 kt).
-Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 6,8 kt (ei LTO) /
-6,3 kt (LTO); SRAM ≈ 342 B (staattinen). megaTinyCore/Wire vie arviolta 1,3 kt flashia ja
-n. 100 B SRAM:ia → arvio **7,6–8,1 kt / 8,2 kt** (tiukka: käytä tarvittaessa `-DFEAT_TEMP=0` tms.). Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
+Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 6,84 kt (ei LTO) /
+6,38 kt (LTO); SRAM ≈ 350 B (staattinen). Alkuperäisen käännöksen symbolilistasta (TWI-keskeytys 332 B, TwoWire-funktiot ja ydin
+yhteensä n. 0,8 kt) → arvio **7,2–7,7 kt / 8,19 kt** (+ SRAM ≈ 100 B Wire/ydin). Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
 käyttää LTO:ta). Pinoa ei ole mitattu: tarkista (esim. täytä pino kuviolla), jos RAM on tiukalla.
+
+## 7. ESP32-yhteensopivuus (`ValoporttiESP32_multi_8_1.ino`, tarkistettu lukemalla koodi, ei ajettu)
+
+**Toimii sellaisenaan** (sama komento, sama vastausmuoto): `CMD_I2C_TEST` (1 tavu), `CMD_ID`, `CMD_PA4_TIME` (8 × 7 bittiä, 1 = ei
+pulssia), `CMD_START` / `CMD_STOP`, `CMD_RESULT` (−1 = 2⁵⁶−1 = ei valmis; ESP:n `virhe`-vertailu toimii), `CMD_REPORT_TRUE`
+(pin 4: pulssi LOW), `CMD_ADC_START` / `CMD_ADC_RESULT` / `CMD_ADC_VALUE` (2 tavua), `CMD_ADC_LOWER/UPPER` (vastaanotetaan,
+ei vaikutusta), `CMD_PRINT` 1…5 ja ≥ 10 (lista päättyy 0:aan, `printtaa kaikki` -silmukka päättyy), `CMD_TEMP_START/STOP`.
+`CMD_SPEED` (13) ja `CMD_RESPONSE` (14) eivät olleet toteutettuna alkuperäisessäkään sketsissä eivätkä ole nytkään.
+
+**Merkitys muuttunut – ESP-koodissa huomioitava**
+
+| Kohta ESP-koodissa | Mitä muuttui | Mitä tehdä |
+|---|---|---|
+| `ATTINY_kpl = 2`, osoitteet 0x41, 0x42 | ATtinyn osoite valitaan UID:n mukaan `setup()`:n `switch`:ssä; tuntematon UID → 0x40 (kaikki uudet laitteet törmäävät) | Lue uusien kahden UID `id`-komennolla, lisää ne ATtiny-sketsin `switch`:iin (0x43, 0x44) ja kasvata `ATTINY_kpl` 4:ään. Lämpötilakertoimet 0 → `temp` antaa vain offsetin |
+| `CMD_ADC_VALUE` (`one adc`, `run adc`, `aloita testi` `t<20`) | lukema on **N muunnoksen summa** (N = 8 oletuksena, 0…8184; ennen kahden summa 0…2046) | jaa N:llä (STATUS-bitit 8–15) ennen mV-laskentaa |
+| `CMD_ADC_RESULT` (`test adc`, `set yla/ala`) | Q16 **yhtä muunnosta** kohti (ennen kahden summan keskiarvo → 2 × suurempi) | `mV = tulos/65536 · Vref/1023`; Vref luettavissa STATUS-bitit 16–19 (0 = 0,55 V, 1 = 1,1 V …). ESP:n `*550/1024` olettaa 0,55 V:n referenssin; **uusi oletusreferenssi on 1,1 V** (ESP ei kutsu `CMD_VREF`:iä; kalibrointivirta §4) |
+| `one adc`: `uint8_t t` | 14-bittinen arvo typistyy 8 bittiin | käytä `uint16_t` |
+| `CMD_RUNTIME` (`runtime`: `t /= 20000000`) | aika on **32-bittinen** (kiertää 2³² syklin välein) ja laskee F_CPU-sykleinä; aikaperusta alkaa alusta jokaisen ADC-asetuksen, `CMD_VREF`:n, `CMD_CLOCK`:n ja `CMD_TEMP_START`:n yhteydessä | jos F_CPU ≠ 20 MHz, jakaja on väärä; erotukset `(uint32_t)(b − a)`, ei uint64 |
+| `CMD_RESULT` (`result`, `aloita testi`) | palauttaa jonon **vanhimman** reunan; jonoon mahtuu 8 reunaa (4 laskevaa + 4 nousevaa). Tulos on edelleen vikaAika (suhteessa ekaAika:an = `CMD_PRINT` 5), ei absoluuttinen | lue 8 kertaa: `CMD_PRINT` 5, `CMD_RESULT`, `CMD_EDGE_NEXT` (25); aika = ekaAika + vikaAika |
+| `CMD_REPORT_TRUE` (`aloita testi`, `report`) | pulssi tulee kun reuna **alkaa** (3 lukemaa kynnyksen ylityksestä), ei 50 %-kohdassa; PA1 on avoin nielu (ei enää HIGH-lähtö) | ESP:n `while (digitalRead(4) == HIGH)` toimii; lisää aikakatkaisu. Tarkka aika vain `CMD_RESULT`:lla |
+| `aloita testi`: I2C-lukuja heti pulssin jälkeen | kappale on vielä ohimenossa; I2C-liikenne keskeyttää ATtinyn ja voi viivästyttää lukemia | odota koko ohitus (STATUS: jonon pituus 8) ennen I2C-lukuja, älä lue I2C:llä kesken ohituksen |
+| `CMD_TEMP_STOP` (`temp`) | lämpötila mitataan nyt datasheetin mukaan (1,1 V, SAMPLEN ≥ 32 µs); alkuperäinen ajoi ADC:n 2,5 MHz:llä ilman pitkää näytteistysaikaa → lukema voi poiketa vanhoista `Temp_kerroin`/`Temp_offset`-arvoista | tarkista vertaamalla referenssilämpömittariin, kalibroi tarvittaessa uudelleen |
+| `CMD_PRINT` 2 / 3 | palauttavat taas alaraja/yläraja (kuten ennen); kohina on nyt valitsin 8 | – |
+
+PA4-synkronointi (`sendSyncPulse`: 80 µs HIGH pulssi, nouseva reuna tallentuu) on yhteensopiva sellaisenaan. Neljällä anturilla
+sama pulssi kaikille; lue `CMD_PA4_TIME` jokaiselta vasta kun I2C on hiljaa.
 
 ## Tarkistuslista ensimmäiseen käynnistykseen
 
