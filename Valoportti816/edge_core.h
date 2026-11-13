@@ -15,6 +15,9 @@
 #define EDGE_PRE      4     // ennakkonäytteitä = EDGE_PRE + EDGE_DET mukaan puskurin alkuun
 #define EDGE_DET      3     // peräkkäisiä samansuuntaisia kynnysylityksiä havaintoon
 #define EDGE_SETTLE   8     // peräkkäisiä "tasaantunut"-lukemia reunan loppuun
+#ifndef EDGE_POST
+#define EDGE_POST    40     // tasaantumisen jälkeen kerättäviä lukemia jälkitason tarkentamiseen (ei puskuriin)
+#endif
 #define EDGE_REG_MAX 20     // enintään näin monta lukemaa regressiossa
 #define EDGE_WARMUP  16     // lohkoja (8 lukemaa) ennen kuin havainto sallitaan
 #define EDGE_MAX_READING 8184
@@ -46,7 +49,8 @@ struct EdgeDetector {
     uint16_t thr;              // havaintokynnys
     uint16_t old3;             // reunaa edeltävä taso (Q3)
     uint16_t sumad;            // lohkon |poikkeama|-summa
-    uint8_t  rpos, len, state, cnt, settle, warm;
+    uint32_t postsum;          // jälkitason lukemien summa (tasaantumisen jälkeen)
+    uint8_t  rpos, len, state, cnt, settle, warm, post;
     uint8_t  overflow;
     struct EdgeCfg cfg;
 };

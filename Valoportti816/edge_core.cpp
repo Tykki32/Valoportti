@@ -11,7 +11,7 @@ void ed_restart(struct EdgeDetector *e, uint16_t level) {
     for (i = 0; i < 8; i++) e->ring[i] = level;
     e->base3 = (uint16_t)(level << 3); e->prev3 = e->base3;
     e->dev3 = 800;                          /* suuri alkuarvo (keskipoikkeama 100): ei vääriä havaintoja ennen konvergenssia */
-    e->sumad = 0; e->rpos = 0; e->len = 0; e->cnt = 0; e->settle = 0;
+    e->sumad = 0; e->rpos = 0; e->len = 0; e->cnt = 0; e->settle = 0; e->post = 0; e->postsum = 0;
     e->overflow = 0; e->warm = EDGE_WARMUP; e->state = ED_WARMUP;
     set_thr(e);
 }
@@ -31,11 +31,16 @@ void ed_push(struct EdgeDetector *e, uint16_t x) {
     e->k_next++;
     if (st == ED_DONE) return;
     if (st == ED_COLLECT) {
+        if (e->settle >= EDGE_SETTLE) {            /* tasaantunut: kerää jälkitason lukemia (ei puskuriin) */
+            e->postsum += x;
+            if (++e->post >= EDGE_POST) e->state = ED_DONE;
+            return;
+        }
         uint8_t n = e->len;
         e->buf[n] = x; e->len = ++n;
         int d = (int)x - (int)e->buf[n - 5];
         if (d < 0) d = -d;
-        if ((unsigned)d <= e->thr + (e->thr >> 1)) { if (++e->settle >= EDGE_SETTLE) { e->state = ED_DONE; return; } }
+        if ((unsigned)d <= e->thr + (e->thr >> 1)) { if (++e->settle >= EDGE_SETTLE) { if (EDGE_POST == 0) e->state = ED_DONE; return; } }
         else e->settle = 0;
         if (n >= EDGE_BUF_N) { e->overflow = 1; e->state = ED_DONE; }
         return;
@@ -54,7 +59,7 @@ void ed_push(struct EdgeDetector *e, uint16_t x) {
             uint8_t i, k = EDGE_PRE + EDGE_DET;
             e->old3 = e->base3;
             for (i = 0; i < k; i++) e->buf[i] = e->ring[(uint8_t)(rp - k + i) & 7];
-            e->len = k; e->k0 = e->k_next - k; e->settle = 0; e->overflow = 0; e->state = ED_COLLECT;
+            e->len = k; e->k0 = e->k_next - k; e->settle = 0; e->post = 0; e->postsum = 0; e->overflow = 0; e->state = ED_COLLECT;
         }
         return;
     }
@@ -80,8 +85,12 @@ static inline uint16_t dist3(uint16_t y, uint16_t M3) {
 
 void ed_process(struct EdgeDetector *e, struct EdgeRes *r) {
     uint8_t n = e->len, i;
-    uint16_t new3 = 0;
-    for (i = 0; i < 8; i++) new3 += e->buf[n - 1 - i];      /* jälkitaso = 8 viimeisen summa (n >= 15), Q3 */
+    uint16_t new3;
+    {                                                        /* jälkitaso = 8 viimeistä + tasaantumisen jälkeiset lukemat, Q3 (8 x keskiarvo) */
+        uint32_t S = e->postsum; uint8_t cnt = (uint8_t)(8 + e->post);
+        for (i = 0; i < 8; i++) S += e->buf[n - 1 - i];
+        new3 = (uint16_t)((S * 8 + (cnt >> 1)) / cnt);
+    }
     uint16_t old3 = e->old3;
     uint8_t rising = new3 > old3;
     uint16_t aH3 = rising ? (uint16_t)(new3 - old3) : (uint16_t)(old3 - new3);

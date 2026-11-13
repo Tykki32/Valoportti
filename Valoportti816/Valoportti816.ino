@@ -405,7 +405,10 @@ static void service_readings(void) {
     if (avail > RB_N) {                                         /* rengas ylivuoti: lukemia menetettiin */
         uint8_t lost = (uint8_t)(avail - RB_N);
         rb_r = (uint8_t)(rb_r + lost); j_cons += lost; st_flags |= ST_RING_OVERRUN | ST_SLIP;
-        if (detect_on) { ed_restart(&det, last_reading); det_off = j_cons; }
+        if (detect_on) {
+            if (det.state <= ED_TRACK) det.k_next += lost;     /* menetetyt lukemat ovat tasaista aluetta: indeksit pysyvät j:n mukana */
+            else { ed_restart(&det, last_reading); det_off = j_cons; }   /* kesken reunaa: aloita alusta */
+        }
     }
     while (rb_r != rb_w) {
         uint16_t x = rb_val[rb_r & (RB_N - 1)];

@@ -53,10 +53,13 @@ reunojen keskiarvoistusta) alaraja on **n. 1,5–2,1 µs**. Estimaattori (kokona
 
 | ADC | virhe RMS | 95 % | huom. |
 |---|---|---|---|
-| N = 8, Ts = 83 µs, σ = 2,1 / muunnos | 2,4 µs | 4,8 µs | alaraja 1,5 µs |
-| N = 8, Ts = 83 µs, σ = 3,0 | 3,3 µs | 6,8 µs | alaraja 2,1 µs |
-| N = 8, Ts = 83 µs, σ = 3,0, askel 120 | 4,7 µs | 9,4 µs | |
-| N = 1 (ei kertymää) | 6,8 µs | 13,7 µs | |
+| N = 8, Ts = 83 µs, σ = 2,1 / muunnos | 2,2 µs | 4,4 µs | alaraja 1,5 µs |
+| N = 8, Ts = 83 µs, σ = 3,0 | 3,0 µs | 6,1 µs | alaraja 2,1 µs |
+| N = 8, Ts = 83 µs, σ = 3,0, askel 120 | 4,2 µs | 8,3 µs | |
+| N = 4, Ts = 100 µs, σ = 2,1 | 3,3 µs | 6,6 µs | alaraja 2,3 µs |
+
+Testissä ledien askeleet ovat eri suuruisia (1 / 0,82 / 0,93 / 0,74 × nimellinen) ja amplitudi ajautuu ±10 %, joten heikoin
+reuna määrää hännän. Ilman näitä (yksi nimellinen reuna, 300 kpl) sama estimaattori antaa RMS ≈ 1,8–2,0 µs (alaraja 1,5 µs).
 
 (3200 reunaa / rivi, satunnaiset reunan kestot 0,8–2,6 ms, ajautuva taso; tunnistus 100 %, vääriä 0.)
 **"Selvästi alle 1 µs" absoluuttinen tarkkuus ei ole saavutettavissa näillä rajoitteilla** – se vaatisi suuremman askeleen
@@ -126,21 +129,24 @@ jäädyttää MCU:n, vain WDT nollaa → WDT ~1 s on päällä). `CMD_CLOCK` kHz
 
 * Ei kiinteitä tasoja: taso seurataan lohkoittain (8 lukemaa), kynnys = `thr_mult · kohinan keskipoikkeama`
   (min `thr_min`). Reuna havaitaan kun 3 peräkkäistä lukemaa ylittää kynnyksen samaan suuntaan.
-* Reuna kerätään puskuriin (≤ 50 lukemaa, 7 ennakkolukemaa) kunnes signaali on tasaantunut (8 lukemaa).
+* Reuna kerätään puskuriin (≤ 50 lukemaa, 7 ennakkolukemaa) kunnes signaali on tasaantunut (8 lukemaa). Tasaantumisen
+  jälkeen kerätään vielä `EDGE_POST` = 40 lukemaa pelkkään jälkitason summaan (ei puskuriin): jälkitaso = 48 lukeman keskiarvo
+  (aiemmin 8), mikä pienensi virhettä n. 10 %. Reunat ovat ≥ 10 ms välein, joten tämä ehtii (reuna ≤ 2,6 ms + 48 lukemaa ≈ 4 ms).
 * Sovitus: reunan 50 %-taso (vanha ja uusi taso keskiarvona), sen ympäriltä (±35 % askeleesta) lineaarinen regressio
   kokonaisluvuilla (ei float, ei int64), kaksi iteraatiota.
 * Heikko reuna (< `min_step`) hylätään.
-* Mitattu AVR-simulaattorilla (atmega328p proxy, AVRe+ -syklit): `ed_push` ka 231 / max 432 sykliä, `ed_process` ka
-  7,5 k / max 8,7 k sykliä (≈ 0,87 ms @ 10 MHz). Lukemarenkaassa on 16 paikkaa (≈ 1,3 ms @ P = 84 µs), joten
-  `ed_process` mahtuu rengasylivuotoa tekemättä, kun CPU ≥ 10 MHz ja I2C-liikenne on kohtuullista. **Alle 10 MHz:n kellolla
-  rengas voi ylivuotaa** (STATUS bitti 0x04) → tunnistus käynnistyy uudelleen.
+* Mitattu AVR-simulaattorilla (atmega328p proxy, AVRe+ -syklit): `ed_push` ka 224 / max 438 sykliä, `ed_process` ka
+  8,3 k / max 9,5 k sykliä (≈ 0,95 ms @ 10 MHz). Lukemarenkaassa on 16 paikkaa (≈ 1,35 ms @ P = 84 µs), joten
+  marginaali on ohut: **alle 10 MHz:n kellolla tai vilkkaalla I2C-liikenteellä rengas voi ylivuotaa** (STATUS bitti 0x04 ja 0x08).
+  Ylivuoto tasaisella alueella (reunan jälkeen) on harmiton: lukemaindeksit korjataan eikä tunnistusta käynnistetä uudelleen;
+  vain kesken reunaa tapahtuva ylivuoto käynnistää tunnistuksen alusta.
 
 ## 6. Käännös, flash ja RAM
 
 Ominaisuuskytkimet (`-DFEAT_TEMP=0`, `-DFEAT_CLOCK=0`, `-DFEAT_REPORT=0`) poistavat osia, jos flash ei riitä (ATtiny816: 8 kt).
-Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 6,4 kt (ei LTO) /
-6,1 kt (LTO), ilman TEMP 6,1 / 5,7 kt, minimi 5,7 / 5,3 kt; SRAM ≈ 330 B. megaTinyCore/Wire vie arviolta 1,3 kt flashia ja
-n. 100 B SRAM:ia → arvio **7,4–7,7 kt / 8,2 kt**. Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
+Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 6,8 kt (ei LTO) /
+6,3 kt (LTO); SRAM ≈ 342 B (staattinen). megaTinyCore/Wire vie arviolta 1,3 kt flashia ja
+n. 100 B SRAM:ia → arvio **7,6–8,1 kt / 8,2 kt** (tiukka: käytä tarvittaessa `-DFEAT_TEMP=0` tms.). Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
 käyttää LTO:ta). Pinoa ei ole mitattu: tarkista (esim. täytä pino kuviolla), jos RAM on tiukalla.
 
 ## Tarkistuslista ensimmäiseen käynnistykseen
