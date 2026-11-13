@@ -1,0 +1,169 @@
+
+
+Symbols from C:\Users\iikko\AppData\Local\arduino\sketches\ECBEAC520909B89CD064012068A46140/ValoporttiAttiny13_3_message.ino.elf:
+
+Name                  Value   Class        Type         Size     Line  Section
+
+__heap_end          |00000000|   W  |            NOTYPE|        |     |*ABS*
+__TEXT_REGION_ORIGIN__|00000000|   W  |            NOTYPE|        |     |*ABS*
+__tmp_reg__         |00000000|   a  |            NOTYPE|        |     |*ABS*
+__vector_default    |00000000|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:63
+__vectors           |00000000|   T  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:63
+__zero_reg__        |00000001|   a  |            NOTYPE|        |     |*ABS*
+__FUSE_REGION_LENGTH__|0000000a|   A  |            NOTYPE|        |     |*ABS*
+__CCP__             |00000034|   a  |            NOTYPE|        |     |*ABS*
+__ctors_start       |00000034|   T  |            NOTYPE|        |     |.text
+__trampolines_end   |00000034|   T  |            NOTYPE|        |     |.text
+__trampolines_start |00000034|   T  |            NOTYPE|        |     |.text
+__ctors_end         |00000036|   T  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:230
+__dtors_end         |00000036|   T  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:230
+__dtors_start       |00000036|   T  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:230
+__init              |00000036|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:230
+__SP_L__            |0000003d|   a  |            NOTYPE|        |     |*ABS*
+__SP_H__            |0000003e|   a  |            NOTYPE|        |     |*ABS*
+__SREG__            |0000003f|   a  |            NOTYPE|        |     |*ABS*
+_initThreeStuff()   |00000042|   T  |              FUNC|00000018|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\cores\megatinycore/main.cpp:149
+__do_copy_data      |0000005a|   T  |            NOTYPE|00000016|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2409
+__do_clear_bss      |00000070|   T  |            NOTYPE|00000010|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2441
+.do_clear_bss_loop  |00000078|   t  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2446
+.do_clear_bss_start |0000007a|   t  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2448
+__do_global_ctors   |00000080|   T  |            NOTYPE|00000014|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2466
+__EEPROM_REGION_LENGTH__|00000080|   A  |            NOTYPE|        |     |*ABS*
+__bad_interrupt     |00000098|   T  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_1          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_10         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_11         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_12         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_14         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_15         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_16         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_18         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_2          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_20         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_21         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_22         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_23         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_24         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_25         |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_3          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_4          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_5          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_6          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_7          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+__vector_9          |00000098|   W  |            NOTYPE|        |     |.text	../../../../../crt1/gcrt1.S:209
+TwoWire::flush()    |0000009a|   t  |              FUNC|00000010|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:1115
+TwoWire::peek()     |000000aa|   t  |              FUNC|00000028|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:1095
+TwoWire::read()     |000000d2|   t  |              FUNC|00000024|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:1015
+TwoWire::available()|000000f6|   t  |              FUNC|0000000c|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:990
+TwoWire::write(unsigned char)|00000102|   t  |              FUNC|00000024|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:928
+TwoWire::write(unsigned char const*, unsigned int)|00000126|   t  |              FUNC|00000046|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:966
+Print::availableForWrite()|0000016c|   t  |              FUNC|00000006|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\cores\megatinycore/api/Print.h:65
+setAlaYla()         |00000172|   t  |              FUNC|0000011a|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:389
+__DATA_REGION_LENGTH__|00000200|   A  |            NOTYPE|        |     |*ABS*
+estimate_center_time()|0000028c|   t  |              FUNC|0000082a|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:306
+__LOCK_REGION_LENGTH__|00000400|   A  |            NOTYPE|        |     |*ABS*
+__SIGNATURE_REGION_LENGTH__|00000400|   A  |            NOTYPE|        |     |*ABS*
+__USER_SIGNATURE_REGION_LENGTH__|00000400|   A  |            NOTYPE|        |     |*ABS*
+nollaa()            |00000ab6|   t  |              FUNC|0000001e|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:299
+write7Bit(unsigned long long, unsigned char)|00000ad4|   t  |              FUNC|0000006a|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:284
+get_timestamp_cycles_safe()|00000b3e|   t  |              FUNC|00000084|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:269
+sendReport()        |00000bc2|   t  |              FUNC|0000003a|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:294
+read_uid()          |00000bfc|   t  |              FUNC|0000002a|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:82
+receiveEvent(int)   |00000c26|   t  |              FUNC|000001ae|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:396
+requestEvent()      |00000dd4|   t  |              FUNC|00000278|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:464
+__vector_19         |0000104c|   T  |              FUNC|0000014c|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:1421
+__vector_8          |00001198|   T  |              FUNC|00000050|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:264
+__vector_13         |000011e8|   T  |              FUNC|000000ca|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:234
+__vector_17         |000012b2|   T  |              FUNC|00000402|     |.text	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:115
+main                |000016b4|   T  |              FUNC|00000242|     |.text	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\cores\megatinycore/main.cpp:49
+_GLOBAL__sub_I_sleepStack|000018f6|   t  |              FUNC|00000032|     |.text
+__subsf3            |00001928|   T  |              FUNC|0000000e|     |.text
+__addsf3            |0000192a|   T  |            NOTYPE|        |     |.text
+__addsf3x           |00001958|   T  |              FUNC|000000cc|     |.text
+__divsf3            |00001a02|   T  |              FUNC|00000008|     |.text
+__divsf3x           |00001a2a|   T  |              FUNC|000000dc|     |.text
+__divsf3_pse        |00001a30|   T  |            NOTYPE|        |     |.text
+__fixsfdi           |00001ae6|   T  |              FUNC|00000078|     |.text
+__fixunssfdi        |00001af0|   T  |            NOTYPE|        |     |.text
+__floatunsisf       |00001b5e|   T  |              FUNC|0000007a|     |.text
+__floatsisf         |00001b62|   T  |            NOTYPE|        |     |.text
+__fp_inf            |00001bd8|   T  |              FUNC|0000000c|     |.text
+__fp_nan            |00001be4|   T  |              FUNC|00000006|     |.text
+__fp_negdi          |00001bea|   T  |              FUNC|00000020|     |.text
+__fp_pscA           |00001c0a|   T  |              FUNC|0000000e|     |.text
+__fp_pscB           |00001c18|   T  |              FUNC|0000000e|     |.text
+__fp_round          |00001c26|   T  |              FUNC|00000022|     |.text
+__fp_split3         |00001c48|   T  |              FUNC|00000044|     |.text
+__fp_splitA         |00001c58|   T  |            NOTYPE|        |     |.text
+__fp_zero           |00001c8c|   T  |              FUNC|0000000e|     |.text
+__fp_szero          |00001c8e|   T  |            NOTYPE|        |     |.text
+__mulsf3            |00001c9a|   T  |              FUNC|00000008|     |.text
+__mulsf3x           |00001cc0|   T  |              FUNC|000000d2|     |.text
+__mulsf3_pse        |00001cc6|   T  |            NOTYPE|        |     |.text
+__udivmodsi4        |00001d74|   T  |            NOTYPE|00000044|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1638
+__udivmodsi4_loop   |00001d80|   t  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1646
+__udivmodsi4_ep     |00001d9a|   t  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1660
+__muluhisi3         |00001db8|   T  |            NOTYPE|00000014|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:626
+__umoddi3           |00001dcc|   T  |            NOTYPE|00000004|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1806
+__udivdi3           |00001dd0|   T  |            NOTYPE|00000002|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1814
+__udivdi3_umoddi3   |00001dd2|   T  |            NOTYPE|00000014|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1818
+__udivmod64         |00001de6|   T  |            NOTYPE|0000007e|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:1842
+__ashldi3           |00001e64|   T  |            NOTYPE|00000032|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:3169
+__ashrdi3           |00001e96|   T  |            NOTYPE|00000004|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:3122
+__lshrdi3           |00001e9a|   T  |            NOTYPE|00000036|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:3131
+__adddi3_s8         |00001ed0|   T  |            NOTYPE|00000018|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2064
+__subdi3            |00001ee8|   T  |            NOTYPE|00000012|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2080
+__cmpdi2            |00001efa|   T  |            NOTYPE|00000012|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2091
+__tablejump2__      |00001f0c|   T  |            NOTYPE|0000000c|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2296
+__umulhisi3         |00001f18|   T  |            NOTYPE|00000018|     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:564
+_exit               |00001f30|   T  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2278
+exit                |00001f30|   W  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2278
+__stop_program      |00001f32|   t  |            NOTYPE|        |     |.text	/home/admin/Arduino/toolchain-avr-special-master/gcc-build/avr/avrxmega3/short-calls/libgcc/../../../../../gcc/libgcc/config/avr/lib1funcs.S:2280
+_etext              |00001f34|   T  |            NOTYPE|        |     |.text
+__data_load_start   |00001f46|   A  |            NOTYPE|        |     |*ABS*
+__data_load_end     |00001f58|   A  |            NOTYPE|        |     |*ABS*
+__TEXT_REGION_LENGTH__|00002000|   A  |            NOTYPE|        |     |*ABS*
+__stack             |00003fff|   W  |            NOTYPE|        |     |*ABS*
+__RODATA_PM_OFFSET__|00008000|   A  |            NOTYPE|        |     |*ABS*
+vtable for TwoWire  |00009f34|   r  |            OBJECT|00000012|     |.rodata
+__DATA_REGION_ORIGIN__|00803e00|   A  |            NOTYPE|        |     |*ABS*
+__data_start        |00803e00|   D  |            NOTYPE|        |     |.data
+keskiarvoitus       |00803e00|   d  |            OBJECT|00000002|     |.data	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:59
+pa4_time            |00803e02|   d  |            OBJECT|00000008|     |.data	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:72
+palautaSync         |00803e0a|   d  |            OBJECT|00000008|     |.data	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:75
+__bss_start         |00803e12|   B  |            NOTYPE|        |     |.bss
+__data_end          |00803e12|   D  |            NOTYPE|        |     |.data
+_edata              |00803e12|   D  |            NOTYPE|        |     |.data
+kellotetaanADC      |00803e12|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:60
+pa4_capture         |00803e13|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:73
+pa4_ovf_snapshot    |00803e15|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:74
+sendedSync          |00803e19|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:58
+tca_overflows       |00803e1a|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:71
+midTarkka           |00803e1e|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:50
+mid                 |00803e22|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:49
+upper               |00803e24|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:55
+lower               |00803e28|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:54
+t_last_message      |00803e2c|   b  |            OBJECT|00000008|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:37
+lista               |00803e34|   b  |            OBJECT|0000008c|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:41
+ekaAika             |00803ec0|   b  |            OBJECT|00000008|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:51
+upperLimit          |00803ec8|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:45
+lowerLimit          |00803eca|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:46
+last_ADC_idx        |00803ecc|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:47
+last_message        |00803ecd|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:38
+last_ADC            |00803ecf|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:43
+vikaAika            |00803ed1|   b  |            OBJECT|00000008|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:48
+sumX                |00803ed9|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:53
+sumXY               |00803edb|   b  |            OBJECT|00000004|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:52
+vaihe               |00803edf|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:44
+last_cmd            |00803ee0|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:36
+sleepStack          |00803ee1|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:43
+twi0_wire           |00803ee2|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:48
+Vref                |00803ee4|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:61
+Wire                |00803ee5|   b  |            OBJECT|00000035|     |.bss	C:\Users\iikko\AppData\Local\Arduino15\packages\megaTinyCore\hardware\megaavr\2.6.12\libraries\Wire\src/Wire.cpp:1503
+Temp_offset         |00803f1a|   b  |            OBJECT|00000002|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:62
+Temp_kerroin        |00803f1c|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:63
+I2C_ADDR            |00803f1d|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:34
+report              |00803f1e|   b  |            OBJECT|00000001|     |.bss	C:\Users\iikko\Documents\Arduino\ValoporttiAttiny13_3_message/ValoporttiAttiny13_3_message.ino:39
+__bss_end           |00803f1f|   B  |            NOTYPE|        |     |.bss
+_end                |00803f1f|   N  |            NOTYPE|        |     |.comment
+__eeprom_end        |00810000|   N  |            NOTYPE|        |     |.comment
