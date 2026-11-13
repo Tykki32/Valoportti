@@ -2,7 +2,7 @@
  * Valoportti816  -  ATtiny816, I2C-orja, tarkka valoportin reunan keskiaika
  * =============================================================================
  * Korvaa ValoporttiAttiny13_3_message-sketsin. I2C-protokolla on sama (komennot 1-21, 7 bittiä/tavu,
- * MSB ensin) + uudet komennot 22-31. Ks. README.md.
+ * MSB ensin) + uudet komennot 22-32. Ks. README.md.
  *
  * MITEN AIKA SYNTYY
  *   - TCA0 käy vapaasti jaksolla P (CLK_PER-sykliä). Jokainen TCA0:n ylivuoto laukaisee ADC:n EVSYS:n kautta
@@ -43,7 +43,7 @@
 #endif
 #define I2C_ADDR_DEFAULT    0x40
 
-/* ---------- I2C-komennot (1-21 = vanhat, 22-31 = uudet) ---------- */
+/* ---------- I2C-komennot (1-21 = vanhat, 22-32 = uudet) ---------- */
 #define CMD_PA4_TIME     1   /* L  viimeisimmän PA4-pulssin aika (sykliä); 1 = ei pulssia (uusi pulssi ylikirjoittaa edellisen) */
 #define CMD_ADC_START    2   /* S  käynnistä keskiarvoistava mittaus (valotason tilastot) */
 #define CMD_ADC_STOP     3   /* S  keskeytä */
@@ -65,12 +65,13 @@
 #define CMD_TEMP_STOP   21   /* L  lämpötilatulos tai -1 jos ei valmis */
 #define CMD_STATUS      22   /* L  tila ja asetukset (ks. build_status) */
 #define CMD_EDGE_NEXT   25   /* S  poista jonon vanhin tulos */
-#define CMD_EDGE_DATA   26   /* S+L payload = aloitusindeksi; luku palauttaa 14 lukemaa RAAKANA (little-endian, 28 tavua) */
+#define CMD_EDGE_DATA   26   /* S+L payload = aloitusindeksi; luku palauttaa 8 lukemaa RAAKANA (little-endian, 16 tavua) */
 #define CMD_CLOCK       27   /* S  payload = ulkoisen kellon kHz (PA3), 0 = takaisin sisäiseen */
 #define CMD_ADC_CFG     28   /* S  payload = kertymäkoodi (0..3 -> N = 1,2,4,8; 7 = auto) | samplen<<3 | esijakajakoodi+1 << 8 (0 = auto) */
 #define CMD_ADC_NOISE   29   /* (varattu) kohina: CMD_PRINT valitsin 2 = kohinan keskipoikkeama x 8 */
 #define CMD_TIME_ADJ    30   /* S  aikakorjaus (etumerkillinen, sykliä), lisätään kaikkiin reunaaikoihin */
 #define CMD_EDGE_PARAM  31   /* S  thr_min | min_step<<10 | thr_mult<<24 */
+#define CMD_CAPTURE     32   /* S  payload = ohitettavien reunojen määrä (0..7): kaappaa seuraava reuna kokonaisena, pysäytä tunnistus, säilytä raakadata */
 
 /* ---------- vakiot ---------- */
 #define RB_N            16                 /* ADC-rengas (2-potenssi) */
@@ -95,6 +96,9 @@ static uint32_t     j_cons = 0;                /* seuraavan kulutettavan lukeman
 static uint16_t     last_reading = 0;
 static uint8_t      detect_on = 0;
 static uint8_t      raw_valid = 0, raw_len = 0;
+static uint8_t      cap_skip = 0xFF;           /* kaappaus: 0xFF = pois, muuten ohitettavien reunojen määrä */
+static uint8_t      cap_done = 0;              /* 1 = reuna kaapattu, raakadata säilytetty */
+static volatile uint8_t req_cap = 0, cap_arg = 0;
 
 /* ADC-asetukset ja johdetut arvot */
 static uint16_t clk_khz = F_CPU / 1000UL;
@@ -302,6 +306,7 @@ static void receiveEvent(int) {
         case CMD_ADC_LOWER:  lower_v = m; break;
         case CMD_ADC_UPPER:  upper_v = m; break;
         case CMD_START:      req_start = 1; break;
+        case CMD_CAPTURE:    cap_arg = (uint8_t)m; req_cap = 1; break;
         case CMD_STOP:       req_stop = 1; break;
         case CMD_ADC_START:  req_stats = 1; break;
         case CMD_ADC_STOP:   req_stats_stop = 1; break;
@@ -327,7 +332,7 @@ static void receiveEvent(int) {
 
 static void requestEvent() {
     uint32_t v = 0;                                              /* vastaus (mod 2^32) */
-    uint8_t n = 8, nr = 1, b[28];                                /* nr = 1: "ei valmis" (-1 = 8 x 0x7F), kunnes toisin asetetaan */
+    uint8_t n = 8, nr = 1, b[16];                                /* nr = 1: "ei valmis" (-1 = 8 x 0x7F), kunnes toisin asetetaan */
     uint8_t i = (uint8_t)last_msg;
     switch (last_cmd) {
         case CMD_I2C_TEST: v = 17; n = 1; nr = 0; break;
@@ -352,7 +357,7 @@ static void requestEvent() {
         case CMD_STATUS:
             v = (uint32_t)(st_flags | (detect_on ? 0x01 : 0) | (det.state >= ED_TRACK ? 0x02 : 0) | (lvl_on ? 0x80 : 0))
               | ((uint32_t)(1U << nacc_code) << 8) | ((uint32_t)cfg_vref << 16) | ((uint32_t)presc_code << 20)
-              | ((uint32_t)qn << 24);
+              | ((uint32_t)qn << 24) | ((uint32_t)(cap_done ? 2 : (cap_skip != 0xFF ? 1 : 0)) << 28);
             nr = 0; break;
         case CMD_RESULT: if (qn) { v = head_vika(); nr = 0; } break;
         case CMD_PRINT: {                                        /* debug; valitsin = last_msg */
@@ -364,18 +369,20 @@ static void requestEvent() {
             else if (sel == 5) { if (qn) v = rec_time(&q[qh], 1); else nr = 1; }      /* ekaAika */
             else if (sel == 6) v = Pcyc;                                              /* lukemajakso (sykliä) */
             else if (sel == 7) { if (qn) v = (uint32_t)(uint16_t)(q[qh].H + 32768) | ((uint32_t)q[qh].flags << 16); else nr = 1; }
+            else if (sel == 60) v = det.old3;                                         /* reunaa edeltävä taso, Q3 (8 x keskiarvo) */
+            else if (sel == 61) v = det.base3;                                        /* jälkitaso (48 lukeman keskiarvo), Q3; pätee kaappauksen jälkeen */
             else if (sel == 8) v = det.dev3;                                          /* kohinan keskipoikkeama x 8 (lukemayksikköä) */
             else if (sel >= 10) { uint16_t k = sel - 10; v = (raw_valid && k < raw_len) ? det.buf[k] : 0; }   /* 0 = lista loppu (kuten ennen) */
             else n = 0;
             break; }
-        case CMD_EDGE_DATA: {                                    /* RAAKA lohko: 14 lukemaa little-endian alkaen indeksistä last_msg */
+        case CMD_EDGE_DATA: {                                    /* RAAKA lohko: 8 lukemaa little-endian alkaen indeksistä last_msg (lyhyt: TWI-keskeytys < P) */
             uint8_t k = 0;
-            for (uint8_t j = 0; j < 14; j++) {
+            for (uint8_t j = 0; j < 8; j++) {
                 uint8_t idx = (uint8_t)(i + j);
                 uint16_t w = (raw_valid && idx < raw_len) ? det.buf[idx] : 0xFFFF;
                 b[k++] = (uint8_t)w; b[k++] = (uint8_t)(w >> 8);
             }
-            Wire.write(b, 28);
+            Wire.write(b, 16);
             return; }
         default: n = 0; break;
     }
@@ -389,7 +396,7 @@ static void requestEvent() {
 static uint32_t level_q16(void) { return ((uint32_t)det.base3 << 13) >> nacc_code; }
 
 static void det_start(void) {
-    qn = 0; qh = 0; raw_valid = 0; st_flags &= (uint8_t)~(ST_QUEUE_LOST | ST_SLIP | ST_RING_OVERRUN);
+    qn = 0; qh = 0; raw_valid = 0; cap_skip = 0xFF; cap_done = 0; st_flags &= (uint8_t)~(ST_QUEUE_LOST | ST_SLIP | ST_RING_OVERRUN);
     ed_init(&det, &edcfg, last_reading);
     det_off = j_cons;
     detect_on = 1;
@@ -399,8 +406,12 @@ static void handle_edge(void) {
     EdgeRes r;
     ed_process(&det, &r);
     raw_len = det.len; raw_valid = 1;
-    if (r.ok && !(r.flags & (EF_WEAK | EF_NOFIT)))
-        queue_push(det_off + det.k0, r.tq8, r.H, (uint8_t)(r.flags | (st_flags & ST_SLIP ? EF_SLIP : 0)));
+    uint8_t take = r.ok && !(r.flags & (EF_WEAK | EF_NOFIT));
+    if (cap_skip != 0xFF && !(r.flags & EF_WEAK)) {            /* kaappaustila: kohinan aiheuttamat heikot tunnistukset ohitetaan */
+        if (cap_skip) cap_skip--;                              /* ohitettava reuna: käsitellään normaalisti */
+        else { qn = 0; qh = 0; take = 1; cap_done = 1; detect_on = 0; cap_skip = 0xFF; }   /* kaapattu: jonoon vain tämä (myös jos sovitus epäonnistui), tunnistus pysähtyy, raakadata säilyy */
+    }
+    if (take) queue_push(det_off + det.k0, r.tq8, r.H, (uint8_t)(r.flags | (st_flags & ST_SLIP ? EF_SLIP : 0)));
     ed_rearm(&det, &r);
 }
 
@@ -473,7 +484,7 @@ static inline void clock_service(void) {}
 
 static void service_requests(void) {
     clock_service();
-    if (req_stop)       { req_stop = 0; detect_on = 0; }
+    if (req_stop)       { req_stop = 0; detect_on = 0; cap_skip = 0xFF; }
     if (req_stats_stop) { req_stats_stop = 0; lvl_on = 0; }
 #if FEAT_TEMP
     if (req_temp)       { req_temp = 0; temp_mode = 1; mux_sel = 1; adc_apply(); }
@@ -482,6 +493,7 @@ static void service_requests(void) {
     if (req_apply)      { req_apply = 0; adc_apply(); }
     if (req_stats)      { req_stats = 0; ed_restart(&det, last_reading); lvl_on = 1; }
     if (req_start)      { req_start = 0; det_start(); }
+    if (req_cap)        { req_cap = 0; det_start(); cap_skip = cap_arg; }
 }
 
 /* ======================== setup / loop ======================== */

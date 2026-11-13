@@ -1,7 +1,7 @@
 # Valoportti816 – ATtiny816-valoportti, tarkka reunan keskiaika
 
 Korvaa `ValoporttiAttiny13_3_message`-sketsin (alkuperäinen on koskematta). **I2C-protokolla on sama** (komennot 1–21,
-7 bittiä / tavu, MSB ensin) + uudet komennot 22–31. Uusi koodi mittaa jokaiselle reunalle sen **50 %-ylityshetken**
+7 bittiä / tavu, MSB ensin) + uudet komennot 22–32. Uusi koodi mittaa jokaiselle reunalle sen **50 %-ylityshetken**
 (hetki, jolloin signaali on puolivälissä askelta eli kappaleen reuna on valonsäteen keskellä) ja antaa ajan
 CLK_PER-sykleinä.
 
@@ -86,18 +86,19 @@ Kirjoitus: `[komento][payload: 7 bittiä / tavu, MSB ensin]`. Luku: komennon jä
 | 10 | STOP | S | lopeta tunnistus |
 | 11 | I2C_TEST | L (1 tavu) | 17 |
 | 12 | RUNTIME | L | laitteen aikaleima nyt (sykliä) |
-| 15 | PRINT | S+L | valitsin = payload: 1 = reunapuskurin pituus, 2 = alaraja (vanha `CMD_ADC_LOWER`), 3 = yläraja, 4 = vikaAika, 5 = ekaAika, 6 = P (sykliä), 7 = askel H + 32768 \| liput << 16, 8 = kohinan keskipoikkeama × 8 (lukemayksikköä), ≥ 10 = raaka lukema nro (valitsin − 10); 0 = lista loppu |
+| 15 | PRINT | S+L | valitsin = payload: 1 = reunapuskurin pituus, 2 = alaraja (vanha `CMD_ADC_LOWER`), 3 = yläraja, 4 = vikaAika, 5 = ekaAika, 6 = P (sykliä), 7 = askel H + 32768 \| liput << 16, 8 = kohinan keskipoikkeama × 8 (lukemayksikköä), ≥ 10 = raaka lukema nro (valitsin − 10); 0 = lista loppu; 60 = reunaa edeltävä taso, 61 = jälkitaso (48 lukeman keskiarvo; pätee kaappauksen jälkeen), molemmat Q3 (8 × lukeman keskiarvo) |
 | 16 / 17 | REPORT_TRUE / FALSE | S | PA1 vedetään LOW 1–2 lukeman ajaksi kun ensimmäinen reuna alkaa (**ei** 50 %-kohdassa), kertakäyttöinen / peru. PA1 on avoin nielu (tulo + pull-up, vedetään alas vain pulssin ajaksi), joten usean laitteen yhteinen linja on turvallinen |
 | 18 | VREF | S | ADC-ref: 0 = 0,55 V, 1 = 1,1 V, 2 = 2,5 V, 3 = 4,34 V, 4 = 1,5 V, 5 = VDD. **Aikaperusta alkaa alusta** |
 | 19 | ID | L | UID:n 4 alinta tavua |
 | 20 / 21 | TEMP_START / STOP | S / L | lämpötilamittaus (kuten ennen; ei `FEAT_TEMP=0`-käännöksessä) |
-| **22** | STATUS | L | bitit 0–7: 0x01 tunnistus päällä, 0x02 seuranta lämmin, 0x04 rengasylivuoto, 0x08 näytteitä menetetty, 0x10 jono täynnä, 0x20 EXTCLK käytössä, 0x40 EXTCLK odottaa reunoja, 0x80 tasomittaus; 8–15: N; 16–19: ref; 20–22: ADC-esijakaja; 24–: jonon pituus |
+| **22** | STATUS | L | bitit 0–7: 0x01 tunnistus päällä, 0x02 seuranta lämmin, 0x04 rengasylivuoto, 0x08 näytteitä menetetty, 0x10 jono täynnä, 0x20 EXTCLK käytössä, 0x40 EXTCLK odottaa reunoja, 0x80 tasomittaus; 8–15: N; 16–19: ref; 20–22: ADC-esijakaja; 24–27: jonon pituus; 28–29: kaappaus (1 = odottaa, 2 = valmis) |
 | **25** | EDGE_NEXT | S | poista jonon vanhin tulos (lue ensin RESULT/PRINT) |
-| **26** | EDGE_DATA | S+L | payload = aloitusindeksi; luku = **28 tavua**: 14 raakalukemaa little-endian (0xFFFF = ei dataa) viimeisimmästä reunasta |
+| **26** | EDGE_DATA | S+L | payload = aloitusindeksi; luku = **16 tavua**: 8 raakalukemaa little-endian (0xFFFF = ei dataa) viimeksi käsitellystä / kaapatusta reunasta. Lyhyt lohko, jotta TWI-keskeytys pysyy alle P |
 | **27** | CLOCK | S | payload = ulkoisen kellon kHz (PA3), 0 = takaisin sisäiseen. **Aikaperusta alkaa alusta** |
 | **28** | ADC_CFG | S | kertymäkoodi (0..3 → N = 1, 2, 4, 8; 7 = auto) \| SAMPLEN << 3 \| (esijakajakoodi + 1) << 8 (0 = auto datasheetin rajoissa; 1…7 = DIV2…DIV256, **voi ylittää datasheetin ADC-kellorajan** – käytä vain jos kohinamittaus osoittaa sen paremmaksi). **Aikaperusta alkaa alusta** |
 | **30** | TIME_ADJ | S | aikakorjaus sykleinä (16-bittinen kaksoiskomplementti, 3 × 7 bittiä), lisätään kaikkiin reunaaikoihin |
 | **31** | EDGE_PARAM | S | `thr_min \| min_step << 10 \| thr_mult << 24` (oletus 6, 40, 5) |
+| **32** | CAPTURE | S | payload = ohitettavien reunojen määrä (0…7): käynnistää tunnistuksen, ohittaa n reunaa, kaappaa seuraavan kokonaisena, **pysäyttää tunnistuksen ja säilyttää raakadatan** (jonoon jää vain kaapattu reuna). STATUS bitit 28–29 kertovat tilan |
 
 Huom: reunan aikaleima- ja jonoarvot ovat `Rec{j0, tq8, H, flags}`; `flags`: 1 nouseva, 2 puskuri ylivuoto, 4 varalla
 (regressio ei onnistunut), 8 heikko (hylätään, ei jonoon), 16 ei sovitusta (hylätään), 32 näyte menetetty reunan aikana.
@@ -148,9 +149,9 @@ jäädyttää MCU:n, vain WDT nollaa → WDT ~1 s on päällä). `CMD_CLOCK` kHz
 ## 6. Käännös, flash ja RAM
 
 Ominaisuuskytkimet (`-DFEAT_TEMP=0`, `-DFEAT_CLOCK=0`, `-DFEAT_REPORT=0`) poistavat osia, jos flash ei riitä (ATtiny816: 8 kt).
-Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 6,84 kt (ei LTO) /
-6,38 kt (LTO); SRAM ≈ 350 B (staattinen). Alkuperäisen käännöksen symbolilistasta (TWI-keskeytys 332 B, TwoWire-funktiot ja ydin
-yhteensä n. 0,8 kt) → arvio **7,2–7,7 kt / 8,19 kt** (+ SRAM ≈ 100 B Wire/ydin). Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
+Mitattu (avr-gcc 7.3, sketsi + edge_core + libgcc, ei oikeaa megaTinyCorea/Wirea): kaikki ominaisuudet 7,03 kt (ei LTO) /
+6,58 kt (LTO), ilman TEMP 6,71 / 6,26 kt; SRAM ≈ 355 B (staattinen). Alkuperäisen käännöksen symbolilistasta (TWI-keskeytys 332 B, TwoWire-funktiot ja ydin
+yhteensä n. 0,8 kt) → arvio **7,4–7,8 kt / 8,19 kt** (+ SRAM ≈ 100 B Wire/ydin). Todellinen koko pitää tarkistaa Arduino-käännöksestä (megaTinyCore
 käyttää LTO:ta). Pinoa ei ole mitattu: tarkista (esim. täytä pino kuviolla), jos RAM on tiukalla.
 
 ## 7. ESP32-yhteensopivuus (`ValoporttiESP32_multi_8_1.ino`, tarkistettu lukemalla koodi, ei ajettu)
@@ -178,6 +179,60 @@ ei vaikutusta), `CMD_PRINT` 1…5 ja ≥ 10 (lista päättyy 0:aan, `printtaa ka
 
 PA4-synkronointi (`sendSyncPulse`: 80 µs HIGH pulssi, nouseva reuna tallentuu) on yhteensopiva sellaisenaan. Neljällä anturilla
 sama pulssi kaikille; lue `CMD_PA4_TIME` jokaiselta vasta kun I2C on hiljaa.
+
+## 8. Reunan muodon tarkastelu (`CMD_CAPTURE`)
+
+Tarkoitus: mitata yksi reuna kokonaisena ja lukea kaikki lukemat ESP32:lle (esim. CSV:ksi Serialiin), jotta reunan muoto
+voidaan tutkia tarkemmin ja sovittaa mallit ESP:ssä.
+
+1. Ledit päälle, referenssi ja ADC-asetus valittu (§4). Halutessasi tihennä näytteistys `CMD_ADC_CFG`:llä: N = 4 → P ≈ 45 µs
+   (puskuri 50 lukemaa = 2,2 ms, riittää ≤ ~1,5 ms reunoille; CPU-kuorma ~65 %, rengasylivuoto reunan jälkeen on harmiton).
+   N = 8 (oletus) kattaa koko 2,6 ms reunan.
+2. `CMD_CAPTURE` payload `k` = ohitettavien reunojen määrä: 0 = ensimmäinen reuna, 1 = toinen … 7 = kahdeksas. Yhdessä ohituksessa
+   saa talteen **yhden** reunan (RAM ei riitä usealle); muotoa tutkitaan siis reuna kerrallaan eri ohituksilla.
+3. Odota ohitus; pollaa `CMD_STATUS`: bitit 28–29 = 2 → kaapattu. Tunnistus on silloin pysähtynyt ja raakadata säilyy
+   seuraavaan `CMD_START` / `CMD_CAPTURE` / ADC-asetuksen muutokseen asti.
+4. Lue: `CMD_PRINT` 1 (lukemien määrä), 5 (ekaAika), 6 (P), 60 / 61 (taso ennen / jälkeen, Q3), `CMD_RESULT` (firmwaren oma
+   sovitus, vikaAika), `CMD_PRINT` 7 (H, liput), `CMD_STATUS` (N, referenssi), sitten `CMD_EDGE_DATA` aloitusindeksistä 0, 8, 16 …
+5. Lukeman *i* aika = `ekaAika + i · P` (sykliä, jo korjattu `delta_eff`:llä); arvo = N muunnoksen summa (0…8184).
+   Kaapatussa puskurissa on 7 ennakkolukemaa ennen reunaa (3 kynnyksen ylitystä + 4 ennen) ja 8 tasaantunutta lukemaa lopussa.
+   Pidempää tasoa ei puskuriin mahdu: käytä tasoihin 60 / 61.
+
+Esimerkki ESP32:lle (käyttää samoja `i2cWrite7` / `i2cRead7` / `i2cReset`-funktioita kuin nykyinen koodi):
+
+```cpp
+#define CMD_STATUS    22
+#define CMD_EDGE_DATA 26
+#define CMD_CAPTURE   32
+
+void readCapture(uint8_t a) {
+  i2cWrite7(a, CMD_STATUS);          uint32_t st  = i2cRead7(a, 8);
+  if (((st >> 28) & 3) != 2) { Serial.println("ei kaapattu"); return; }
+  uint8_t  N   = (st >> 8) & 0xFF;                                          // muunnoksia / lukema
+  i2cWrite7(a, CMD_PRINT, 5, 1);     uint32_t eka = i2cRead7(a, 8);          // ekaAika (sykliä)
+  i2cWrite7(a, CMD_PRINT, 6, 1);     uint32_t P   = i2cRead7(a, 8);          // lukemajakso (sykliä)
+  i2cWrite7(a, CMD_PRINT, 1, 1);     uint8_t  len = i2cRead7(a, 8);          // lukemia
+  i2cWrite7(a, CMD_RESULT);          uint32_t vika = i2cRead7(a, 8);         // firmwaren sovitus: eka + vika
+  i2cWrite7(a, CMD_PRINT, 60, 1);    uint32_t lo  = i2cRead7(a, 8);          // taso ennen (Q3)
+  i2cWrite7(a, CMD_PRINT, 61, 1);    uint32_t hi  = i2cRead7(a, 8);          // taso jälkeen (Q3)
+  Serial.printf("N=%u P=%lu eka=%lu vika=%lu lo=%lu hi=%lu len=%u\n", N, (unsigned long)P, (unsigned long)eka, (unsigned long)vika, (unsigned long)lo, (unsigned long)hi, len);
+  for (uint8_t i = 0; i < len; i += 8) {
+    i2cWrite7(a, CMD_EDGE_DATA, i, 1);
+    if (Wire.requestFrom(a, (uint8_t)16) != 16) { i2cReset(); return; }
+    for (uint8_t j = 0; j < 8 && i + j < len; j++) {
+      uint16_t v = Wire.read(); v |= (uint16_t)Wire.read() << 8;
+      Serial.printf("%u,%lu,%u\n", i + j, (unsigned long)(eka + (uint32_t)(i + j) * P), v);   // indeksi, aika (sykliä), lukema
+    }
+  }
+}
+// käyttö: i2cWrite7(addr, CMD_CAPTURE, 0, 1);  ... odota ohitus ... readCapture(addr);
+```
+
+**Varoitus (TWI-keskeytyksen kesto):** I2C-callbackit (`requestEvent`, `receiveEvent`) ajetaan TWI-keskeytyksessä, joka ohittaa
+TCA0-ylivuoto- ja TCB0-keskeytykset. Jos yksittäinen TWI-keskeytys kestää pidempään kuin P (84 µs = 844 sykliä @ 10 MHz),
+TCA0:n ylivuoto voi jäädä laskematta → **kaikki myöhemmät aikaleimat siirtyvät P:n verran**. Siksi `EDGE_DATA`-lohko on vain
+8 lukemaa (arvio: n. 600–700 sykliä sisältäen `Wire.write`:n; **ei mitattu**). Tarkista laitteella: lue `CMD_RUNTIME` ennen ja jälkeen
+pitkän lukusarjan ja vertaa ESP:n `micros()`-aikaan. Jos aika hyppää, pienennä lohkoa (`EDGE_DATA`-silmukan 8) tai aja ATtiny 20 MHz:llä.
 
 ## Tarkistuslista ensimmäiseen käynnistykseen
 
