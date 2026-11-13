@@ -25,9 +25,16 @@
  *
  * LAITTEISTON JAKO
  *   PA7   analogitulo (valokenno), ADC0 kanava AIN7
- *   PA4   digitaalitulo -> EVSYS-kanava 0 -> TCB0 capture -> pa4_time (tarkka reunan aikaleima)
- *   PA1   synkronointilinja: lepotilassa tulo + pull-up (HIGH). Kun raportointi on päällä,
- *         laite vetää linjan LOW 80 µs kun mitattava reuna ylittää 50 % (sendReport)
+ *   PA4   digitaalitulo -> EVSYS-kanava 0 -> TCB0 capture -> pa4_time (tarkka reunan aikaleima).
+ *         Käyttäjän kertoma (ei tarkistettu kortilta): PA4 on kytketty ESP32:een, jotta kaikki ATtiny816-
+ *         laitteet saavat saman synkronointipulssin yhtä aikaa. Kukin tallentaa sen OMAN kellonsa mukaan;
+ *         ESP32 lukee arvot CMD_PA4_TIME:lla ja voi laskea laitteiden kellojen erot.
+ *   PA1   ilmoituspinni (report): lepotilassa tulo + pull-up (HIGH). Kun CMD_REPORT_TRUE on annettu, laite
+ *         vetää linjan LOW 80 µs kun mitattava reuna ylittää 50 % (sendReport). Koodi ei koskaan lue PA1:tä.
+ *         Mihin PA1 on kytketty, ei ole tiedossa (OLETUS: ilmoitus ESP32:lle, että portti laukesi).
+ *   PB0   I2C SCL  (megaTinyCoren oletuspinnit; sketsi ei vaihda niitä. Vaihtoehtoiset pinnit olisivat
+ *   PB1   I2C SDA   PA2 = SCL ja PA1 = SDA, joten PA1 ei ole käytössä I2C:lle tässä koodissa.)
+ *   PA0   UPDI (ohjelmointi), koodi ei käytä
  *   TCA0  vapaasti pyörivä 16-bit ajastin + ylivuotolaskuri = aikaleimojen perusta
  *   TCD0  näytteenottokello: CMPBCLR-event -> EVSYS-kanava 1 -> käynnistää ADC0-muunnoksen
  *   TCB0  capture-ajastin PA4-reunan aikaleimaukseen
