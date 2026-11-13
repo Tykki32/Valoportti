@@ -128,7 +128,6 @@ static volatile uint16_t req_clock_khz = 0;
 static uint8_t  lvl_on = 0;
 
 /* vanhat/yhteensopivuus */
-static uint32_t lower_v = 0, upper_v = 0;
 static uint8_t  last_cmd = 0;
 static uint32_t last_msg = 0;
 static uint8_t  report = 0, rep_wait = 0;
@@ -154,6 +153,18 @@ static int16_t  Temp_offset = 0;
 static uint8_t  Temp_kerroin = 0;
 
 static uint32_t level_q16(void);
+
+/* Pinon vapaan tilan mittaus: setup() maalaa vapaan RAM:in 0xAA:lla, stack_free() laskee koskemattomat tavut (CMD_PRINT 9) */
+extern uint8_t __bss_end;
+static void stack_paint(void) {
+    uint8_t *p = &__bss_end, *sp = (uint8_t *)SP;
+    while (p + 16 < sp) *p++ = 0xAA;
+}
+static uint16_t stack_free(void) {
+    uint8_t *p = &__bss_end; uint16_t n = 0;
+    while (p <= (uint8_t *)RAMEND && *p == 0xAA) { p++; n++; }
+    return n;
+}
 
 /* ======================== apufunktiot ======================== */
 static uint32_t read_uid() {
@@ -303,8 +314,8 @@ static void receiveEvent(int) {
     while (Wire.available()) m = (m << 7) | (Wire.read() & 0x7F);
     last_msg = m;
     switch (last_cmd) {
-        case CMD_ADC_LOWER:  lower_v = m; break;
-        case CMD_ADC_UPPER:  upper_v = m; break;
+        case CMD_ADC_LOWER:  break;                                /* (vanha) vastaanotetaan, ei talleteta: tunnistus on suhteellinen */
+        case CMD_ADC_UPPER:  break;
         case CMD_START:      req_start = 1; break;
         case CMD_CAPTURE:    cap_arg = (uint8_t)m; req_cap = 1; break;
         case CMD_STOP:       req_stop = 1; break;
@@ -332,7 +343,7 @@ static void receiveEvent(int) {
 
 static void requestEvent() {
     uint32_t v = 0;                                              /* vastaus (mod 2^32) */
-    uint8_t n = 8, nr = 1, b[16];                                /* nr = 1: "ei valmis" (-1 = 8 x 0x7F), kunnes toisin asetetaan */
+    uint8_t n = 8, nr = 1, b[8];                                /* nr = 1: "ei valmis" (-1 = 8 x 0x7F), kunnes toisin asetetaan */
     uint8_t i = (uint8_t)last_msg;
     switch (last_cmd) {
         case CMD_I2C_TEST: v = 17; n = 1; nr = 0; break;
@@ -363,26 +374,24 @@ static void requestEvent() {
         case CMD_PRINT: {                                        /* debug; valitsin = last_msg */
             uint16_t sel = (uint16_t)last_msg; nr = 0;
             if (sel == 1)      v = raw_len;                                           /* reunapuskurin pituus */
-            else if (sel == 2) v = lower_v;                                           /* (vanha) tallennettu alaraja */
-            else if (sel == 3) v = upper_v;                                           /* (vanha) tallennettu yläraja */
+            else if (sel == 2 || sel == 3) v = 0;                                     /* (vanha) alaraja / yläraja: ei talleteta */
             else if (sel == 4) { if (qn) v = head_vika(); else nr = 1; }              /* vikaAika: ylitys suhteessa ekaAika:an */
             else if (sel == 5) { if (qn) v = rec_time(&q[qh], 1); else nr = 1; }      /* ekaAika */
             else if (sel == 6) v = Pcyc;                                              /* lukemajakso (sykliä) */
             else if (sel == 7) { if (qn) v = (uint32_t)(uint16_t)(q[qh].H + 32768) | ((uint32_t)q[qh].flags << 16); else nr = 1; }
+            else if (sel == 9)  v = stack_free();                                     /* pinossa koskematonta tilaa (tavua): pienin havaittu pitää olla > ~20 */
             else if (sel == 60) v = det.old3;                                         /* reunaa edeltävä taso, Q3 (8 x keskiarvo) */
             else if (sel == 61) v = det.base3;                                        /* jälkitaso (48 lukeman keskiarvo), Q3; pätee kaappauksen jälkeen */
             else if (sel == 8) v = det.dev3;                                          /* kohinan keskipoikkeama x 8 (lukemayksikköä) */
             else if (sel >= 10) { uint16_t k = sel - 10; v = (raw_valid && k < raw_len) ? det.buf[k] : 0; }   /* 0 = lista loppu (kuten ennen) */
             else n = 0;
             break; }
-        case CMD_EDGE_DATA: {                                    /* RAAKA lohko: 8 lukemaa little-endian alkaen indeksistä last_msg (lyhyt: TWI-keskeytys < P) */
-            uint8_t k = 0;
+        case CMD_EDGE_DATA: {                                    /* RAAKA lohko: 8 lukemaa little-endian alkaen indeksistä last_msg (lyhyt: TWI-keskeytys < P; ei välipuskuria: pino) */
             for (uint8_t j = 0; j < 8; j++) {
                 uint8_t idx = (uint8_t)(i + j);
                 uint16_t w = (raw_valid && idx < raw_len) ? det.buf[idx] : 0xFFFF;
-                b[k++] = (uint8_t)w; b[k++] = (uint8_t)(w >> 8);
+                Wire.write((uint8_t)w); Wire.write((uint8_t)(w >> 8));
             }
-            Wire.write(b, 16);
             return; }
         default: n = 0; break;
     }
@@ -498,6 +507,7 @@ static void service_requests(void) {
 
 /* ======================== setup / loop ======================== */
 void setup() {
+    stack_paint();
     switch (read_uid()) {
         case 2235643953UL: I2C_ADDR = 0x41; Temp_kerroin = 114; Temp_offset = -5315; break;
         case 3314495277UL: I2C_ADDR = 0x42; Temp_kerroin = 115; Temp_offset = 4774; break;
