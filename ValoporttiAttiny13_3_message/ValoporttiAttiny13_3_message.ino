@@ -22,6 +22,8 @@
  *   - Kaikki ajat ovat 20 MHz kellosyklejä (1 sykli = 50 ns, 1 µs = 20 sykliä).
  *   - 64-bittinen aikaleima = (tca_overflows << 16) | TCA0.CNT, ks. get_timestamp_cycles_safe().
  *   - ADC-näytejakso = TCD0.CMPBCLR = 550 sykliä = 27,5 µs (n. 36 kHz).
+ *   - HUOM: datasheetin (taulukko 36-3) mukaan 20 MHz CPU-kello on sallittu vain kun VDD = 4,5...5,5 V;
+ *     VDD = 2,7...5,5 V sallii enintään 10 MHz. Koodi olettaa 20 MHz:n (esim. 20 sykliä/µs).
  *
  * LAITTEISTON JAKO
  *   PA7   analogitulo (valokenno), ADC0 kanava AIN7
@@ -268,11 +270,14 @@ void adc_init(){
   // SAMPNUM = 1 -> 2 näytettä KERTYY SUMMAKSI (ei jaeta keskiarvoksi). Siksi last_ADC on 0..2046.
   ADC0.CTRLB  = 1;                            //Keskiarvoitus 2^n
   // CTRLC: bitti 6 = SAMPCAP, bitit 5:4 = REFSEL (0 = sisäinen ref, 1 = VDD), bitit 2:0 = esijakaja.
-  // HUOM: SAMPCAP:ia ei päivitetä kun Vref vaihdetaan CMD_VREF:llä (kommentin mukaan 1 kun Vref > 1 V).
+  // HUOM: SAMPCAP:ia ei päivitetä kun Vref vaihdetaan CMD_VREF:llä. Datasheet (CTRLC.SAMPCAP): 0 = suositus kun
+  //       VREF < 1 V, 1 = pienempi näytekondensaattori, suositus korkeammille referensseille (kommentti yllä pitää paikkansa).
   ADC0.CTRLC  = 0 << 6;                       //capasitanssi. 0 kun Vref<1V, 1 kun Vref>1V
   ADC0.CTRLC |= 0 << 4;                       //0 Vref, 1 VDD
-  // HUOM: ADC-kello = 20 MHz / 8 = 2,5 MHz. Datasheetin 10-bit-ADC:n raja on n. 1,5 MHz (n. 115 ksps);
-  //       tarkista, onko tämä tarkoituksella spesifikaation ulkopuolella (DIV16 = 1,25 MHz olisi rajoissa).
+  // HUOM: ADC-kello = 20 MHz / 8 = 2,5 MHz. Datasheet (DS40002288A, ADC-luku ja taulukko 36-26): CLK_ADC saa olla
+  //       50 kHz..1,5 MHz (10 bit, VREF >= 1,1 V), mutta VREF = 0,55 V:lla (oletus tässä koodissa) vain 100..260 kHz ja
+  //       näytetaajuus 7,5..20 ksps. Nykyinen asetus on siis n. 10x yli rajan 0,55 V:n referenssillä: tarkkuutta
+  //       ei taata. Tässä koodissa lukemataajuus on 1 / 27,5 µs = 36 ksps (kukin lukema 2 muunnosta = 72 ksps).
   // Yksi lukema (2 muunnosta) kestää n. 10,4 µs, mikä mahtuu 27,5 µs näytejaksoon.
   ADC0.CTRLC |= ADC_PRESC_DIV8_gc;            //ADC_clk = CLK/DIV
   // STARTEI: muunnos käynnistyy tapahtumasta (EVSYS-kanava 1 = TCD0 CMPBCLR), ei ohjelmallisesti.
@@ -453,7 +458,8 @@ void evsys_init(void) {
 
 // TCB0 = PA4-reunan TARKKA aikaleimaus. Input Capture Event -tila: kun PA4:n tapahtuma tulee, laskurin arvo
 // kopioituu CCMP:hen ja syntyy keskeytys. Kello = TCA0:n kello (20 MHz), vapaasti pyörivä 16-bit laskuri.
-// Reunan suunta määräytyy EVCTRL.EDGE-bitistä (nyt 0, ei asetettu).
+// EVCTRL.EDGE = 0 (ei asetettu): Input Capture on Event -tilassa capture tapahtuu NOUSEVALLA reunalla (datasheet,
+// EVCTRL.EDGE-taulukko). FILTER ei ole käytössä. Tapahtuman on kestettävä vähintään yksi CLK_PER-sykli (50 ns @ 20 MHz).
 void tcb0_init() {
   TCB0.CTRLA = 0; // stop
   TCB0.CTRLB = TCB_CNTMODE_CAPT_gc; // Capture mode
