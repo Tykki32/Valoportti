@@ -14,6 +14,34 @@ sovitus; testattavissa `g++`:lla).
 `test/test_core.cpp` on isäntätesti (portaikkosignaali, kohina, ajautuva taso): `cd test && g++ -O2 -o test_core test_core.cpp ../edge_core.cpp && ./test_core 83 8 2.1 170 400`
 (argumentit: Ts µs, N, σ/muunnos, askel/muunnos, ajojen määrä).
 
+## 0. Käyttöönotto (flash ja ajo)
+
+**ATtiny816 (`Valoportti816/`)** – Arduino IDE + megaTinyCore 2.6.x, ohjelmointi UPDI:llä:
+* Chip: ATtiny816 (atxy6). Clock: 10 MHz (3,3 V) tai 20 MHz (vaatii VDD ≥ 4,5 V). ESP-sketsin `ATTINY_FCPU` vastaa tätä (vain nimellinen).
+* **millis()/micros(): Disabled** (alkuperäinenkin käännös oli näin; TCA0 ja TCB0 ovat tämän koodin käytössä, älä valitse niitä millis-ajastimeksi).
+* Wire: oletus (master + slave, yhdistetty puskuri). Sketsikansiossa ovat `Valoportti816.ino`, `edge_core.cpp`, `edge_core.h`
+  (`test/` on isäntätestejä, Arduino ei käännä sitä).
+* **Mitattu käännös** (megaTinyCore master + Wire, avr-gcc 7.3, 10 MHz, millis pois): flash **7468 B / 8192 (91 %)**, RAM staattinen
+  **395 B / 512**, pinolle jää 117 B. 20 MHz: 7470 B. Millis TCD0:lla: 7586 B / 405 B. (Käännetty ydin oli GitHubin `master`, ei tarkalleen
+  2.6.12; Arduino-käännöksen luvut voivat poiketa muutamia kymmeniä tavuja.)
+* **Pino on tiukka.** Pahimman tapauksen pinosyvyys (edge-laskenta + TWI-keskeytys + ADC-keskeytys päällekkäin) arvioitu jopa ~170 B,
+  mutta vain jos I2C-liikenne osuu juuri reunan laskennan (~1 ms) kohdalle. Mittaa: `CMD_PRINT` 9 palauttaa koskemattomat pinotavut
+  (ESP:n `status`); jos arvo on < ~20, vähennä I2C-liikennettä mittauksen aikana tai pienennä `EDGE_BUF_N`:ää.
+* Anturin I2C-osoite valitaan UID:n mukaan `setup()`:n `switch`:ssä (0x41 ja 0x42 tunnetuille, muuten 0x40). Kahdelle uudelle anturille:
+  kytke vain se väylälle, kirjoita ESP:ssä `id40`, lisää UID `switch`:iin osoitteilla 0x43 / 0x44 ja flashaa.
+
+**ESP32-S3 (`ValoporttiESP32_multi_8_2/`)** – Arduino-ESP32 3.x. Käynnistyksessä anturit etsitään osoitteista 0x41–0x44 (puuttuva ei jumita).
+Komennot (Serial 115200 tai BLE): `scan`, `test`, `status`, `kalibroi`, `sync`, `aloita testi`, `kaappaa <anturi> <k>`, `result`, `runtime`,
+`one adc`, `test adc`, `temp`, `vref <anturi> <0..5>`, `cfg <anturi> <N-koodi> <samplen> <esijakaja>`, `passwait <ms>` sekä vanhat.
+
+**Ensimmäinen ajo (tässä järjestyksessä)**
+1. `test` → "I2C ok" kaikille. `status` → N=8, ref=1100mV, **pino_vapaa > 20**.
+2. `runtime` kahdesti tunnetulla välillä: aika kuluu F_CPU-tahdissa. `sync` → PA4-ajat eivät ole 1.
+3. Ledit päälle, `kalibroi` → taso < 85 % valitulla referenssillä; `one adc` ≈ N × taso.
+4. `aloita testi`, ohita kappale → 8 reunaa / anturi, `f_MHz` ≈ nimellinen ±5 %, ei VAROITUS-rivejä.
+5. `kaappaa 0 0` → CSV reunan lukemista (muodon tarkastelu, §8).
+6. Mikä tahansa poikkeama → kerro; testaamattomia ovat: ADC-kertymän ajoitus (`delta_eff`), TCB0-synkronointi, EXTCLK, pinosyvyys, lämpötilan uudet kertoimet.
+
 ## 1. Miten aika syntyy
 
 * TCA0 käy vapaasti jaksolla **P** (CLK_PER-sykliä). Jokainen ylivuoto laukaisee ADC:n EVSYS:n kautta (`STARTEI`).
